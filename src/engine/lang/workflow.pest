@@ -1,0 +1,99 @@
+// MIT License
+
+// Copyright (c) 2025 K. Finger
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
+COMMENT    = _{ "#" ~ (!"\n" ~ ANY)* }
+
+program = { SOI ~ (function_def | workflow)* ~ EOI }
+
+function_def = { "function" ~ ident ~ "(" ~ param_list? ~ ")" ~ function_body }
+
+function_body = {
+    "=" ~ expr
+  | "{" ~ statement* ~ "}"
+}
+
+statement = {
+    let_statement
+  | assign_statement
+  | if_statement
+  | return_statement
+  | expr_statement
+}
+
+let_statement    = { "let" ~ ident ~ "=" ~ expr ~ ";" }
+assign_statement = { ident ~ "=" ~ expr ~ ";" }
+if_statement     = { "if" ~ expr ~ "{" ~ statement* ~ "}" ~ ("else" ~ "{" ~ statement* ~ "}")? }
+return_statement = { "return" ~ expr ~ ";" }
+expr_statement   = { expr ~ ";" }
+
+param_list = { ident ~ ("," ~ ident)* }
+
+workflow = { "workflow" ~ ident ~ "{" ~ phase* ~ "}" }
+
+phase = {
+    score_phase
+  | match_phase
+  | filter_phase
+  | sort_phase
+}
+
+score_phase  = { "score" ~ "{" ~ rule* ~ "}" }
+match_phase  = { "match" ~ "{" ~ match_rule* ~ "}" }
+filter_phase = { "filter" ~ "{" ~ "when" ~ expr ~ "}" }
+sort_phase   = { "sort" ~ "{" ~ "by" ~ expr ~ sort_order? ~ "}" }
+
+rule       = { "when" ~ expr ~ "then" ~ action }
+match_rule = { "when" ~ expr ~ "then" ~ match_action }
+
+action = {
+    "score" ~ "=" ~ expr
+  | "log" ~ string
+}
+
+match_action = { "assign" ~ "to" ~ ident }
+
+sort_order = { "asc" | "desc" }
+
+expr         = { or_expr }
+or_expr      = { and_expr ~ ("or" ~ and_expr)* }
+and_expr     = { comp_expr ~ ("and" ~ comp_expr)* }
+comp_expr    = {
+    add_expr ~ ("==" | "!=" | "in" | ">" | "<" | ">=" | "<=") ~ add_expr
+  | add_expr
+}
+add_expr     = { mul_expr ~ (("+" | "-") ~ mul_expr)* }
+mul_expr     = { unary_expr ~ (("*" | "/") ~ unary_expr)* }
+unary_expr   = { ("-" | "!")* ~ primary_expr }
+primary_expr = { function_call | member_access | list | string | number | ident | bool | "(" ~ expr ~ ")" }
+
+member_access = { ident ~ ("." ~ ident)+ }
+
+function_call = { ident ~ "(" ~ arg_list? ~ ")" }
+arg_list      = { expr ~ ("," ~ expr)* }
+
+list = { "[" ~ (expr ~ ("," ~ expr)*)? ~ "]" }
+
+ident  = @{ (ASCII_ALPHANUMERIC | "_")+ }
+string = @{ "\"" ~ ("\\\"" | !"\"" ~ ANY)* ~ "\"" }
+number = @{ ASCII_DIGIT+ }
+bool   =  { "true" | "false" }
